@@ -1,9 +1,9 @@
 import sqlite3
 import time
+from datetime import datetime, timedelta
 from telebot import types
 from bot import bot
 import requests
-import schedule
 import threading
 import config
 
@@ -71,10 +71,10 @@ def set_location_next(message):
         city = data['local_names']['ru']
         try:
             username = message.from_user.username
-            db.execute("INSERT INTO user (username, tg_id, city, lat, lon) VALUES (?, ?, ?, ?, ?)", username, user_id, city, lat, lon)
+            db.execute("INSERT or REPLACE INTO user (username, tg_id, city, lat, lon) VALUES (?, ?, ?, ?, ?)", username, user_id, city, lat, lon)
             bot.send_message(chat_id, "Ваша локация успешно установлена.")
         except:
-            db.execute("INSERT INTO user (tgid, lat, lon) VALUES (?, ?, ?)", user_id, lat, lon)
+            db.execute("INSERT OR REPLACE INTO user (tgid, lat, lon) VALUES (?, ?, ?)", user_id, lat, lon)
             bot.send_message(chat_id, "Ваша локация успешно установлена.")
         finally:
             db.commit()
@@ -83,10 +83,10 @@ def set_location_next(message):
         city = message.text
         try:
             username = message.from_user.username
-            db.execute("INSERT INTO user (username, tg_id, city) VALUES (?, ?, ?)", username, user_id, city)
+            db.execute("INSERT OR REPLACE INTO user (username, tg_id, city) VALUES (?, ?, ?)", username, user_id, city)
             bot.send_message(chat_id, "Ваша локация успешно установлена.")
         except Exception as e:
-            db.execute("INSERT INTO user (username, tg_id, city) VALUES (?, ?)",  user_id, city)
+            db.execute("INSERT OR REPLACE INTO user (username, tg_id, city) VALUES (?, ?)",  user_id, city)
             bot.send_message(chat_id, "Ваша локация успешно установлена.")
         finally:
             db.commit()
@@ -161,14 +161,16 @@ def set_notification_times(message, frequency):
 def schedule_notifications():
     db = database()
     while True:
-        current_time = time.strftime('%H:%M')
+        current_time = datetime.now()
+        current_time += timedelta(hours=5)
         rows = db.execute("SELECT chat_id, times, city FROM user_notifications")
         if rows:
+            print(current_time.strftime('%H:%M'))
             for row in rows:
                 chat_id = row[0]
                 times = row[1].split(',')
                 city = row[2]
-                if current_time in times:
+                if current_time.strftime('%H:%M') in times:
                     bot.send_message(chat_id, get_weather(config.api_key, city=city))
         time.sleep(60)  # Проверка каждую минуту
 
